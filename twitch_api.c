@@ -21,14 +21,14 @@ extern "C" {
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
     
-#define sendpak(s,buf,len) fwrite (buf, 1, len, stdout); send((SOCKET)s,buf,len,0)
+#define sendpak(s,buf,len) send((SOCKET)s,buf,len,0)
 #define recvpak(s,buf,len) recv((SOCKET)s,buf,len,0)
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
     
-#define sendpak(s,buf,len) fwrite (buf, 1, len, stdout); send(s,buf,len,0)
+#define sendpak(s,buf,len) send(s,buf,len,0)
 #define recvpak(s,buf,len) recv(s,buf,len,0)
 #endif
     
@@ -47,11 +47,9 @@ extern "C" {
     char* finalize_msg(char* buf)
     {
         // NOTE: May not need null terminator, check on this
-        //buf[0] = '\r';
-        buf[0] = '\n';
-        //buf[1] = '\0';
-        
-        return buf + 1;
+        buf[0] = '\r';
+        buf[1] = '\n';
+        return buf + 2;
     }
     
     // Exposed functions //
@@ -139,7 +137,7 @@ extern "C" {
         char* seek = conn->outbuffer;
         seek = append_msg(seek, "JOIN #");
         seek = append_msg(seek, channel);
-        //seek = finalize_msg(seek);
+        seek = finalize_msg(seek);
         
         return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
     }
@@ -157,13 +155,7 @@ extern "C" {
     int twitch_sendmsg(twitch_conn* conn, char* msg)
     {
         char* seek = conn->outbuffer;
-        seek = append_msg(seek, ":");
-        seek = append_msg(seek, conn->name);
-        seek = append_msg(seek, "!");
-        seek = append_msg(seek, conn->name);
-        seek = append_msg(seek, "@");
-        seek = append_msg(seek, conn->name);
-        seek = append_msg(seek, ".tmi.twitch.tv PRIVMSG #");
+        seek = append_msg(seek, "PRIVMSG #");
         seek = append_msg(seek, conn->curchannel.name);
         seek = append_msg(seek, " :");
         seek = append_msg(seek, msg);
@@ -176,19 +168,27 @@ extern "C" {
         va_list vl;
         va_start(vl,format);
         char* seek = conn->outbuffer;
-        seek = append_msg(seek, ":");
-        seek = append_msg(seek, conn->name);
-        seek = append_msg(seek, "!");
-        seek = append_msg(seek, conn->name);
-        seek = append_msg(seek, "@");
-        seek = append_msg(seek, conn->name);
-        seek = append_msg(seek, ".tmi.twitch.tv PRIVMSG #");
+        seek = append_msg(seek, "PRIVMSG #");
         seek = append_msg(seek, conn->curchannel.name);
         seek = append_msg(seek, " :");
         seek += vsprintf(seek,format,vl);
         seek = finalize_msg(seek);
         
         return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
+    }
+    
+    int twitch_sendraw(twitch_conn* conn, char* cmd)
+    {
+        char* seek = conn->outbuffer;
+        seek = append_msg(seek, cmd);
+        return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
+    }
+    int twitch_sendrawf(twitch_conn* conn, const char* format, ...)
+    {
+        va_list vl;
+        va_start(vl,format);
+        int len = vsprintf(conn->outbuffer,format,vl);
+        return sendpak(conn->sock,conn->outbuffer,len);
     }
     int twitch_mainroutine(twitch_conn* conn)
     {
@@ -211,8 +211,8 @@ extern "C" {
         if(!strcmp(conn->inbuffer,"PING :tmi.twitch.tv"))
         {
             char* seek = conn->outbuffer;
-            seek = append_msg(seek,"PONG :tmi.twitch.tv\n");
-            sendpak(conn->sock,conn->outbuffer,sizeof("PONG :tmi.twitch.tv\n")-1);
+            seek = append_msg(seek,"PONG :tmi.twitch.tv\r\n");
+            sendpak(conn->sock,conn->outbuffer,sizeof("PONG :tmi.twitch.tv\r\n")-1);
             return 0;
         }
         if(conn->msgrecvfn != NULL)

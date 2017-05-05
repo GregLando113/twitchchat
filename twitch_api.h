@@ -54,6 +54,9 @@ extern "C" {
     int twitch_joinchannel(twitch_conn* conn, char* channel);
     int twitch_leavechannel(twitch_conn* conn, char* channel);
     
+    int twitch_sendraw(twitch_conn* conn, char* cmd);
+    int twitch_sendrawf(twitch_conn* conn, const char* format, ...);
+    
     int twitch_setmsgrecvfn(twitch_conn* conn,msg_recv_fn_t* fn );
     
     int twitch_sendmsg(twitch_conn* conn, char* msg);
