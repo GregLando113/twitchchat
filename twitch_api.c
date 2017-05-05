@@ -48,10 +48,10 @@ extern "C" {
     {
         // NOTE: May not need null terminator, check on this
         //buf[0] = '\r';
-        //buf[1] = '\n';
-        //buf[2] = '\0';
+        buf[0] = '\n';
+        //buf[1] = '\0';
         
-        return buf;
+        return buf + 1;
     }
     
     // Exposed functions //
@@ -70,7 +70,7 @@ extern "C" {
         
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
-        printf("connecting...\n");
+        
         iresult = getaddrinfo(TWITCH_CHAT_API_ROOT, TWITCH_CHAT_API_PORT, &hints, &result);
         if(iresult != 0 ) 
         {
@@ -100,19 +100,23 @@ extern "C" {
             close(conn->sock);
             return 3;
         }
-        printf("connected, sending user/pass\n");
+        
+        char* seek;
+        
+        
         // Send oauth password
-        char* seek = conn->outbuffer;
+        seek = conn->outbuffer;
         seek = append_msg(seek, "PASS ");
         seek = append_msg(seek, oauthpass);
-        finalize_msg(seek);
+        seek = finalize_msg(seek);
         sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
         
         // Send username
+        strcpy(conn->name,name);
         seek = conn->outbuffer;
         seek = append_msg(seek, "NICK ");
         seek = append_msg(seek, name);
-        finalize_msg(seek);
+        seek = finalize_msg(seek);
         sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
         
         conn->isConnected = 1;
@@ -130,24 +134,22 @@ extern "C" {
     
     int twitch_joinchannel(twitch_conn* conn, char* channel)
     {
-        printf("joining channel\n");
         // set current channel name
         strcpy(conn->curchannel.name,channel);
         char* seek = conn->outbuffer;
         seek = append_msg(seek, "JOIN #");
         seek = append_msg(seek, channel);
-        finalize_msg(seek);
+        //seek = finalize_msg(seek);
         
         return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
     }
     
     int twitch_leavechannel(twitch_conn* conn, char* channel)
     {
-        printf("leaving channel\n");
         char* seek = conn->outbuffer;
         seek = append_msg(seek, "PART #");
         seek = append_msg(seek, channel);
-        finalize_msg(seek);
+        seek = finalize_msg(seek);
         
         return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
     }
@@ -155,11 +157,17 @@ extern "C" {
     int twitch_sendmsg(twitch_conn* conn, char* msg)
     {
         char* seek = conn->outbuffer;
-        seek = append_msg(seek, "PRIVMSG #");
+        seek = append_msg(seek, ":");
+        seek = append_msg(seek, conn->name);
+        seek = append_msg(seek, "!");
+        seek = append_msg(seek, conn->name);
+        seek = append_msg(seek, "@");
+        seek = append_msg(seek, conn->name);
+        seek = append_msg(seek, ".tmi.twitch.tv PRIVMSG #");
         seek = append_msg(seek, conn->curchannel.name);
         seek = append_msg(seek, " :");
         seek = append_msg(seek, msg);
-        finalize_msg(seek);
+        seek = finalize_msg(seek);
         
         return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
     }
@@ -168,11 +176,17 @@ extern "C" {
         va_list vl;
         va_start(vl,format);
         char* seek = conn->outbuffer;
-        seek = append_msg(seek, "PRIVMSG #");
+        seek = append_msg(seek, ":");
+        seek = append_msg(seek, conn->name);
+        seek = append_msg(seek, "!");
+        seek = append_msg(seek, conn->name);
+        seek = append_msg(seek, "@");
+        seek = append_msg(seek, conn->name);
+        seek = append_msg(seek, ".tmi.twitch.tv PRIVMSG #");
         seek = append_msg(seek, conn->curchannel.name);
         seek = append_msg(seek, " :");
         seek += vsprintf(seek,format,vl);
-        finalize_msg(seek);
+        seek = finalize_msg(seek);
         
         return sendpak(conn->sock,conn->outbuffer,(size_t)(seek - conn->outbuffer));
     }
@@ -185,21 +199,20 @@ extern "C" {
         {
             return 0;
         }
-        printf("recv: %s result=%d\n",conn->inbuffer,result);
+        //printf("recv: %s result=%d\n",conn->inbuffer,result);
         // Error occured
         if(result < 0)
         {
             conn->isConnected = 0;
             return result;
         }
-        printf("recv: %s",conn->inbuffer);
+        //printf("recv: %s",conn->inbuffer);
         // If this is a heartbeat request, just reply as is
-        if(!strcmp(conn->inbuffer,"PING :tmi.twitch.tv\r\n"))
+        if(!strcmp(conn->inbuffer,"PING :tmi.twitch.tv"))
         {
-            printf("\n");
             char* seek = conn->outbuffer;
-            seek = append_msg(seek,"PONG :tmi.twitch.tv\r\n");
-            sendpak(conn->sock,conn->outbuffer,sizeof("PONG :tmi.twitch.tv\r\n")-1);
+            seek = append_msg(seek,"PONG :tmi.twitch.tv\n");
+            sendpak(conn->sock,conn->outbuffer,sizeof("PONG :tmi.twitch.tv\n")-1);
             return 0;
         }
         if(conn->msgrecvfn != NULL)

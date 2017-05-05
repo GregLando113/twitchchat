@@ -10,6 +10,15 @@ void msgrecv(char* msg, unsigned len)
     fwrite (msg, 1, len, stdout);
 }
 
+DWORD WINAPI mainroutine(LPVOID conn)
+{
+    while(twitch.isConnected)
+    {
+        twitch_mainroutine(&twitch);
+        Sleep(1);
+    }
+    return 0;
+}
 
 int main(int argc, char** argv)
 {
@@ -25,11 +34,14 @@ int main(int argc, char** argv)
         return 1;
     }
     twitch_setmsgrecvfn(&twitch, msgrecv);
-    twitch_joinchannel(&twitch,"clintstevens");
-    while(twitch.isConnected)
+    CreateThread(0, 0, mainroutine, 0, 0, 0);
+    twitch_setmsgrecvfn(&twitch, msgrecv);
+    Sleep(500);
+    twitch_joinchannel(&twitch,"kaos4d1");
+    while(fgets (inbuffer, 0x100, stdin) != NULL)
     {
-        twitch_mainroutine(&twitch);
-        Sleep(1);
+        twitch_sendmsg(&twitch,inbuffer);
     }
+    
     return 0;
 }
