@@ -70,7 +70,13 @@ extern "C" {
             {
                 continue;
             }
-            if(*raw == '!')
+            if(*raw == ':')
+            {
+                *raw = '\0';
+                msg->params[msg->paramc++] = raw + 1;
+                msgfound = 1;
+            }
+            else if(*raw == '!')
             {
                 *raw = '\0';
                 msg->nick = pivot;
@@ -84,13 +90,6 @@ extern "C" {
             }
             else if(*raw == ' ')
             {
-                if(*pivot == ':')
-                {
-                    *(pivot-1) = '\0';
-                    msg->params[msg->paramc++] = pivot + 1;
-                    msgfound = 1;
-                    continue;
-                }
                 if(msg->host == NULL)
                 {
                     *raw = '\0';
@@ -256,7 +255,7 @@ extern "C" {
     {
         twitch_ircmessage ircmsg;
         int result;
-        result = recvpak(conn->sock,conn->inbuffer,0x220);
+        result = recvpak(conn->sock,conn->inbuffer,0x420);
         // Nothing to process
         if(result == 0)
         {
@@ -271,7 +270,7 @@ extern "C" {
         }
         //printf("recv: %s",conn->inbuffer);
         // If this is a heartbeat request, just reply as is
-        if(!strcmp(conn->inbuffer,"PING :tmi.twitch.tv"))
+        if(!memcmp(conn->inbuffer,"PING",sizeof("PING")-1))
         {
             char* seek = conn->outbuffer;
             seek = append_msg(seek,"PONG :tmi.twitch.tv\r\n");

@@ -57,8 +57,8 @@ extern "C" {
         
         int sock;
         // WARNING: Static buffer potentially unsafe.
-        char outbuffer[0x220];
-        char inbuffer[0x220];
+        char outbuffer[0x420];
+        char inbuffer[0x420];
     } twitch_conn;
     
     

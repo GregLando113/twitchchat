@@ -3,7 +3,7 @@
 #include "twitch_api.h"
 
 twitch_conn twitch;
-char inbuffer[0x100];
+char inbuffer[0x100] = {0};
 
 void msgrecv(char* user, char* msg)
 {
@@ -41,8 +41,11 @@ int main(int argc, char** argv)
     }
     twitch.msgrecvfn = msgrecv;
     CreateThread(0, 0, threadmain, 0, 0, 0);
-    
-    twitch_joinchannel(&twitch,"majinphil");
+    printf("channel? ");
+    if(fgets (inbuffer, 0x100, stdin) != NULL)
+    {
+        twitch_joinchannel(&twitch,inbuffer);
+    }
     while(fgets (inbuffer, 0x100, stdin) != NULL)
     {
         twitch_sendmsg(&twitch,inbuffer);
