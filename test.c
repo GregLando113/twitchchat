@@ -42,11 +42,11 @@ int main(int argc, char** argv)
     twitch.msgrecvfn = msgrecv;
     CreateThread(0, 0, threadmain, 0, 0, 0);
     printf("channel? ");
-    if(fgets (inbuffer, 0x100, stdin) != NULL)
+    if(gets_s(inbuffer, 0x100) != NULL)
     {
         twitch_joinchannel(&twitch,inbuffer);
     }
-    while(fgets (inbuffer, 0x100, stdin) != NULL)
+    while(gets_s(inbuffer, 0x100) != NULL)
     {
         twitch_sendmsg(&twitch,inbuffer);
     }
