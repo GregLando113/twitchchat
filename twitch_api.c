@@ -291,11 +291,6 @@ extern "C" {
         }
         return 0;
     }
-    int twitch_setmsgrecvfn(twitch_conn* conn,msg_recv_fn_t* fn )
-    {
-        conn->msgrecvfn = fn;
-        return 0;
-    }
     
 #ifdef __cplusplus
 }

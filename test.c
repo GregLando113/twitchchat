@@ -39,7 +39,7 @@ int main(int argc, char** argv)
         printf("Error occured. err = %d\n", err);
         return 1;
     }
-    twitch_setmsgrecvfn(&twitch, msgrecv);
+    twitch.msgrecvfn = msgrecv;
     CreateThread(0, 0, threadmain, 0, 0, 0);
     
     twitch_joinchannel(&twitch,"majinphil");
