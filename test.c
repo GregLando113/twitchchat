@@ -5,9 +5,9 @@
 twitch_conn twitch;
 char inbuffer[0x100];
 
-void msgrecv(char* msg, unsigned len)
+void msgrecv(char* user, char* msg)
 {
-    fwrite (msg, 1, len, stdout);
+    printf("<%s> %s\n", user, msg);
 }
 
 DWORD WINAPI threadmain(LPVOID conn)
@@ -42,10 +42,10 @@ int main(int argc, char** argv)
     twitch_setmsgrecvfn(&twitch, msgrecv);
     CreateThread(0, 0, threadmain, 0, 0, 0);
     
-    twitch_joinchannel(&twitch,"clintstevens");
+    twitch_joinchannel(&twitch,"majinphil");
     while(fgets (inbuffer, 0x100, stdin) != NULL)
     {
-        twitch_sendraw(&twitch,inbuffer);
+        twitch_sendmsg(&twitch,inbuffer);
     }
     twitch_disconnect(&twitch);
     return 0;

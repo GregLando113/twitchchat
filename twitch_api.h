@@ -9,8 +9,21 @@ extern "C" {
     
 #include <stdint.h>
     
+    typedef struct twitch_ircmessage
+    {
+        char* nick;
+        char* user;
+        char* host;
+        char* command;
+        int paramc;
+        char* params[16];
+        struct {
+            uint8_t isResponse : 1;
+        };
+    } twitch_ircmessage;
     
-    typedef void msg_recv_fn_t(char* message, unsigned len);
+    typedef void cmd_recv_fn_t(twitch_ircmessage* msg);
+    typedef void msg_recv_fn_t(char* user, char* message);
     
     typedef struct twitch_viewer
     {
@@ -36,6 +49,7 @@ extern "C" {
         twitch_channel curchannel;
         
         msg_recv_fn_t* msgrecvfn;
+        cmd_recv_fn_t* cmdrecvfn;
         
         struct {
             uint8_t isConnected : 1;
@@ -56,8 +70,6 @@ extern "C" {
     
     int twitch_sendraw(twitch_conn* conn, char* cmd);
     int twitch_sendrawf(twitch_conn* conn, const char* format, ...);
-    
-    int twitch_setmsgrecvfn(twitch_conn* conn,msg_recv_fn_t* fn );
     
     int twitch_sendmsg(twitch_conn* conn, char* msg);
     int twitch_sendmsgf(twitch_conn* conn,const char* format, ...);

@@ -23,6 +23,7 @@ extern "C" {
     
 #define sendpak(s,buf,len) send((SOCKET)s,buf,len,0)
 #define recvpak(s,buf,len) recv((SOCKET)s,buf,len,0)
+#define closesock(s) closesocket(s)
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -30,6 +31,7 @@ extern "C" {
     
 #define sendpak(s,buf,len) send(s,buf,len,0)
 #define recvpak(s,buf,len) recv(s,buf,len,0)
+#define closesock(s) close(s)
 #endif
     
 #define TWITCH_CHAT_API_ROOT "irc.chat.twitch.tv"
@@ -52,6 +54,66 @@ extern "C" {
         return buf + 2;
     }
     
+    void parse_irc(twitch_ircmessage* msg, char* raw)
+    {
+        memset(msg,0,sizeof(twitch_ircmessage));
+        char msgfound = 0;
+        char* pivot = raw;
+        if(*pivot == ':')
+        {
+            msg->isResponse = 1;
+            ++pivot; ++raw;
+        }
+        for(;*(short*)raw != '\r\n';++raw)
+        {
+            if (msgfound)
+            {
+                continue;
+            }
+            if(*raw == '!')
+            {
+                *raw = '\0';
+                msg->nick = pivot;
+                pivot = raw + 1;
+            }
+            else if(*raw == '@')
+            {
+                *raw = '\0';
+                msg->user = pivot;
+                pivot = raw + 1;
+            }
+            else if(*raw == ' ')
+            {
+                if(*pivot == ':')
+                {
+                    *(pivot-1) = '\0';
+                    msg->params[msg->paramc++] = pivot + 1;
+                    msgfound = 1;
+                    continue;
+                }
+                if(msg->host == NULL)
+                {
+                    *raw = '\0';
+                    msg->host = pivot;
+                    pivot = raw + 1;
+                }
+                else if(msg->command == NULL)
+                {
+                    *raw = '\0';
+                    msg->command = pivot;
+                    pivot = raw + 1;
+                }
+                else
+                {
+                    *raw = '\0';
+                    msg->params[msg->paramc++] = pivot;
+                    pivot = raw + 1;
+                }
+            }
+        }
+        
+        *raw = '\0';
+    }
     // Exposed functions //
     
     int twitch_connect(twitch_conn* conn,char* name,char* oauthpass)
@@ -85,7 +147,7 @@ extern "C" {
             iresult = connect(conn->sock, ptr->ai_addr, (int)ptr->ai_addrlen);
             if(iresult < 0)
             {
-                close(conn->sock);
+                closesock(conn->sock);
                 continue;
             }
             break;
@@ -95,7 +157,7 @@ extern "C" {
         
         if(conn->sock == -1) 
         {
-            close(conn->sock);
+            closesock(conn->sock);
             return 3;
         }
         
@@ -123,7 +185,7 @@ extern "C" {
     int twitch_disconnect(twitch_conn* conn)
     {
         conn->isConnected = 0;
-        close(conn->sock);
+        closesock(conn->sock);
 #ifdef _WIN32
         WSACleanup();
 #endif
@@ -192,6 +254,7 @@ extern "C" {
     }
     int twitch_mainroutine(twitch_conn* conn)
     {
+        twitch_ircmessage ircmsg;
         int result;
         result = recvpak(conn->sock,conn->inbuffer,0x220);
         // Nothing to process
@@ -215,9 +278,16 @@ extern "C" {
             sendpak(conn->sock,conn->outbuffer,sizeof("PONG :tmi.twitch.tv\r\n")-1);
             return 0;
         }
-        if(conn->msgrecvfn != NULL)
+        parse_irc(&ircmsg, conn->inbuffer);
+        if(conn->cmdrecvfn != NULL)
         {
-            conn->msgrecvfn(conn->inbuffer, result);
+            conn->cmdrecvfn(&ircmsg);
+        }
+        if(conn->msgrecvfn != NULL && 
+           !strcmp(ircmsg.command,"PRIVMSG") &&
+           ircmsg.paramc == 2)
+        {
+            conn->msgrecvfn(ircmsg.user,ircmsg.params[1]);
         }
         return 0;
     }
