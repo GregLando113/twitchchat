@@ -1,5 +1,11 @@
+#define __STDC_WANT_LIB_EXT1__ 1
 #include <stdio.h>
+#ifdef _WIN32
 #include <Windows.h>
+#else
+#include <pthread.h>
+#include <time.h>
+#endif
 #include "twitch_api.h"
 
 twitch_conn twitch;
@@ -10,7 +16,11 @@ void msgrecv(char* user, char* msg)
     printf("<%s> %s\n", user, msg);
 }
 
+#ifdef _WIN32
 DWORD WINAPI threadmain(LPVOID conn)
+#else
+void* threadmain(void* conn)
+#endif
 {
     int result;
     while(twitch.isConnected)
@@ -20,8 +30,12 @@ DWORD WINAPI threadmain(LPVOID conn)
         {
             printf("ERR: mainroutine = %d", result);
         }
+#ifdef _WIN32
         Sleep(1);
-        
+#else
+        struct timespec tspec = {0, 1000000};
+        nanosleep(&tspec, NULL);
+#endif      
     }
     return 0;
 }
@@ -40,13 +54,18 @@ int main(int argc, char** argv)
         return 1;
     }
     twitch.msgrecvfn = msgrecv;
+#ifdef _WIN32
     CreateThread(0, 0, threadmain, 0, 0, 0);
+#else
+    pthread_t mthread;
+    pthread_create(&mthread, NULL, threadmain, NULL);
+#endif
     printf("channel? ");
-    if(gets_s(inbuffer, 0x100) != NULL)
+    if(fgets(inbuffer, 0x100, stdin) != NULL)
     {
         twitch_joinchannel(&twitch,inbuffer);
     }
-    while(gets_s(inbuffer, 0x100) != NULL)
+    while(fgets(inbuffer, 0x100, stdin) != NULL)
     {
         twitch_sendmsg(&twitch,inbuffer);
     }

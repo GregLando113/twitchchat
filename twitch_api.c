@@ -27,7 +27,8 @@ extern "C" {
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <netdb.h>
+#include <stdarg.h>
     
 #define sendpak(s,buf,len) send(s,buf,len,0)
 #define recvpak(s,buf,len) recv(s,buf,len,0)
@@ -117,10 +118,10 @@ extern "C" {
     
     int twitch_connect(twitch_conn* conn,char* name,char* oauthpass)
     {
-        
+#ifdef _WIN32
         WSADATA d;
         WSAStartup(MAKEWORD(2,2), &d);
-        
+#endif      
         
         struct addrinfo *result = NULL;
         struct addrinfo *ptr = NULL;
